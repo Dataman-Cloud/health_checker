@@ -2,7 +2,6 @@ package health_checker
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -57,12 +56,19 @@ func NoopSpeedChecker() (time.Duration, error) {
 }
 
 type HealthChecker struct {
+	ServiceName string
+	Status      int32
+	Time        time.Duration
+
 	CheckPoints map[string]*CheckPoint
 }
 
-func NewHealthChecker() *HealthChecker {
+func NewHealthChecker(serviceName string) *HealthChecker {
 	checker := &HealthChecker{
 		CheckPoints: make(map[string]*CheckPoint, 0),
+		Status:      STATUS_OK,
+		Time:        time.Duration(0),
+		ServiceName: serviceName,
 	}
 
 	return checker
@@ -96,7 +102,7 @@ func (checker *HealthChecker) AddCheckPoint(driver, dsnOrUrl string,
 }
 
 // Do checking and log result
-func (checker *HealthChecker) Check() string {
+func (checker *HealthChecker) Check() map[string]map[string]int32 {
 	for name, cp := range checker.CheckPoints {
 		log.Println(name)
 		cp.ServiceReachable = cp.ConnectionChecker()
@@ -105,17 +111,24 @@ func (checker *HealthChecker) Check() string {
 		if err != nil {
 			cp.PingReachable = false
 			cp.PingSpeed = time.Duration(0)
+			checker.Status = STATUS_RESULT_FAIL
 		} else {
 			cp.PingReachable = true
 			cp.PingSpeed = speed
+			checker.Time += speed
 		}
 
 	}
-	return checker.ResponseJSON()
+	return checker.Response()
 }
 
-func (checker *HealthChecker) ResponseJSON() string {
+func (checker *HealthChecker) Response() map[string]map[string]int32 {
 	result := make(map[string]map[string]int32, 0)
+	criteria := make(map[string]int32, 0)
+	criteria["Status"] = checker.Status
+	criteria["Time"] = int32(checker.Time.Nanoseconds())
+	result[checker.ServiceName] = criteria
+
 	for name, cp := range checker.CheckPoints {
 		criteria := make(map[string]int32, 0)
 		if !cp.ServiceReachable {
@@ -130,8 +143,7 @@ func (checker *HealthChecker) ResponseJSON() string {
 		result[name] = criteria
 	}
 
-	json, _ := json.Marshal(result)
-	return string(json)
+	return result
 }
 
 func (checkPoint *CheckPoint) RedisConnectionChecker() bool {

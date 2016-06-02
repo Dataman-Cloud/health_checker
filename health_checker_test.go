@@ -10,7 +10,7 @@ import (
 )
 
 func TestNewHealthChecker(t *testing.T) {
-	checker := NewHealthChecker()
+	checker := NewHealthChecker("foobar")
 	checker.AddCheckPoint("redis", "localhost:6379", nil, nil)
 	checker.AddCheckPoint("mysql", "root:@/mysql", nil, nil)
 	checker.AddCheckPoint("mq", "amqp://guest:guest@localhost:5672/", nil, nil)
