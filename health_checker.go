@@ -126,7 +126,7 @@ func (checker *HealthChecker) Response() map[string]map[string]int32 {
 	result := make(map[string]map[string]int32, 0)
 	criteria := make(map[string]int32, 0)
 	criteria["Status"] = checker.Status
-	criteria["Time"] = int32(checker.Time.Nanoseconds())
+	criteria["Time"] = int32(checker.Time.Nanoseconds() / 1000 / 1000)
 	result[checker.ServiceName] = criteria
 
 	for name, cp := range checker.CheckPoints {
@@ -139,7 +139,7 @@ func (checker *HealthChecker) Response() map[string]map[string]int32 {
 			criteria["Status"] = STATUS_OK
 		}
 
-		criteria["Time"] = int32(cp.PingSpeed.Nanoseconds())
+		criteria["Time"] = int32(cp.PingSpeed.Nanoseconds() / 1000 / 1000)
 		result[name] = criteria
 	}
 
