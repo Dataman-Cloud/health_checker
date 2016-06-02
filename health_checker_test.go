@@ -2,6 +2,7 @@ package health_checker
 
 import (
 	"fmt"
+	_ "github.com/go-sql-driver/mysql"
 	"log"
 	"net/http"
 	"testing"

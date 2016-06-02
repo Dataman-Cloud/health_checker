@@ -10,7 +10,6 @@ import (
 	"time"
 
 	redis "github.com/garyburd/redigo/redis"
-	_ "github.com/go-sql-driver/mysql"
 	"github.com/streadway/amqp"
 )
 
