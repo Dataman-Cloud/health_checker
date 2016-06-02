@@ -53,4 +53,3 @@
     {"http":{"Status":0,"Time":150404704},"mq":{"Status":0,"Time":850894},"mysql":{"Status":0,"Time":102477},"redis":{"Status":0,"Time":119484}}
   ```
   
-  To make sure result accurate enough, time field of a individual result is Nanoseconds.
