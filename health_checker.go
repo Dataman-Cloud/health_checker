@@ -10,6 +10,8 @@ import (
 
 	redis "github.com/garyburd/redigo/redis"
 	"github.com/streadway/amqp"
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/influxdata/influxdb/client/v2"
 )
 
 const (
@@ -96,6 +98,9 @@ func (checker *HealthChecker) AddCheckPoint(driver, dsnOrUrl string,
 	case "mq":
 		checkPoint.ConnectionChecker = checkPoint.MqConnectionChecker
 		checkPoint.SpeedChecker = checkPoint.MqSpeedChecker
+	case "influxdb":
+		checkPoint.ConnectionChecker = checkPoint.InfluxdbConnectionChecker
+		checkPoint.SpeedChecker = checkPoint.InfluxdbSpeedChecker
 	}
 
 	checker.CheckPoints[driver] = checkPoint
@@ -250,6 +255,85 @@ func (checkPoint *CheckPoint) MqSpeedChecker() (time.Duration, error) {
 	if err != nil {
 		log.Println(err)
 		return time.Duration(-1), nil
+	}
+
+	return time.Now().Sub(beginTime), nil
+}
+
+func (checkPoint *CheckPoint) InfluxdbConnectionChecker() bool {
+	s := strings.Split(checkPoint.DsnOrUrl, "@")
+	if len(s) < 2 {
+		log.Fatalln("influxdb health check url is not corrected: ", checkPoint.DsnOrUrl)
+		return false
+	}
+	credential := s[0]
+	url := s[1]
+	m := strings.Split(credential, ":")
+	if len(m) < 2 {
+		log.Fatalln("influxdb health check url is not corrected: ", checkPoint.DsnOrUrl)
+		return false
+	}
+	username := m[0]
+	password := m[1]
+	c, err := client.NewHTTPClient(client.HTTPConfig{
+		Addr:     url,
+		Username: username,
+		Password: password,
+		Timeout:  10 * time.Second,
+	})
+	if err != nil {
+		log.Fatalln("Error: ", err)
+		return false
+	}
+
+	if _, _, err := c.Ping(10 * time.Second); err != nil {
+		log.Fatalln("Error: ", err)
+		return false
+	}
+
+	checkPoint.Connection = c
+
+	return true
+
+}
+func (checkPoint *CheckPoint) InfluxdbSpeedChecker() (time.Duration, error) {
+	beginTime := time.Now()
+	conn, ok := checkPoint.Connection.(client.Client)
+	if !ok {
+		log.Println("connected failed")
+		return time.Duration(-1), nil
+	}
+	defer conn.Close()
+	bp, err := client.NewBatchPoints(client.BatchPointsConfig{
+		Database:  "shurenyun",
+		Precision: "s",
+	})
+
+	if err != nil {
+		log.Fatalln("Error: ", err)
+		return time.Duration(-1), NotReachable
+	}
+
+	// Create a point and add to batch
+	tags := map[string]string{"cpu": "cpu-total"}
+	fields := map[string]interface{}{
+		"idle":   10.1,
+		"system": 53.3,
+		"user":   46.6,
+	}
+	pt, err := client.NewPoint("speed_test", tags, fields, time.Now())
+
+	if err != nil {
+		log.Fatalln("Error: ", err)
+		return time.Duration(-1), NotReachable
+	}
+
+	bp.AddPoint(pt)
+
+	// Write the batch
+	if err := conn.Write(bp); err != nil {
+		log.Fatalln("Error: ", err)
+		return time.Duration(-1), NotReachable
 	}
 
 	return time.Now().Sub(beginTime), nil
