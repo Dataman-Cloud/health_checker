@@ -9,9 +9,9 @@ import (
 	"time"
 
 	redis "github.com/garyburd/redigo/redis"
-	"github.com/streadway/amqp"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/influxdata/influxdb/client/v2"
+	"github.com/streadway/amqp"
 )
 
 const (
@@ -285,6 +285,7 @@ func (checkPoint *CheckPoint) InfluxdbConnectionChecker() bool {
 		log.Fatalln("Error: ", err)
 		return false
 	}
+	defer c.Close()
 
 	if _, _, err := c.Ping(10 * time.Second); err != nil {
 		log.Fatalln("Error: ", err)
